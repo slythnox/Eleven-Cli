@@ -83,7 +83,7 @@ function showAbout() {
   console.log(chalk.gray('• Interactive chat sessions'));
   console.log(chalk.gray('• File analysis and code review'));
   
-  console.log(chalk.green('\n💫 Made with ❤️ by Slythnox'));
+  
 }
 
 async function handlePresets(command, prompt) {
