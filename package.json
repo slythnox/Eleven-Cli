@@ -1,29 +1,44 @@
 {
-  "name": "eleven",
+  "name": "eleven-cli",
   "version": "1.0.0",
-  "description": "Eleven - Personal AI assistant for Slythnox",
-  "main": "src/index.js",
+  "description": "Personal AI Assistant CLI for Slythnox",
+  "main": "bin/eleven.js",
   "bin": {
-    "el": "./bin/eleven.js"
+    "el": "./bin/eleven.js",
+    "eleven": "./bin/eleven.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "link": "npm link",
-    "unlink": "npm unlink -g"
+    "start": "node bin/eleven.js",
+    "install-global": "npm link",
+    "uninstall-global": "npm unlink -g",
+    "test": "node bin/eleven.js --help"
   },
-  "keywords": ["cli", "ai", "eleven", "assistant", "slythnox"],
+  "dependencies": {
+    "@google/generative-ai": "^0.15.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1"
+  },
+  "keywords": [
+    "ai",
+    "cli",
+    "assistant",
+    "gemini",
+    "personal-assistant",
+    "slythnox"
+  ],
   "author": "Slythnox",
   "license": "MIT",
-  "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "commander": "^12.0.0",
-    "chalk": "^4.1.2",
-    "ora": "^5.4.1",
-    "inquirer": "^8.2.6",
-    "os": "^0.1.2",
-    "path": "^0.12.7"
-  },
   "engines": {
     "node": ">=16.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slythnox/eleven-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slythnox/eleven-cli/issues"
+  },
+  "homepage": "https://github.com/slythnox/eleven-cli#readme"
 }
