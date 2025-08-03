@@ -27,7 +27,7 @@ async function handleChat(options = {}) {
         const response = await geminiService.generateResponse(prompt);
         spinner.stop();
         
-        console.log(chalk.blue('\n🤖 Eleven:'));
+        console.log(chalk.blue('\nEleven:'));
         console.log(response);
         console.log('');
         
@@ -43,7 +43,7 @@ async function handleChat(options = {}) {
     }
 
     // Interactive chat mode
-    console.log(chalk.green('🤖 Starting chat session with Eleven...'));
+    console.log(chalk.green('Starting chat session with Eleven...'));
     console.log(chalk.gray('Type "exit", "quit", or press Ctrl+C to end the conversation.\n'));
 
     while (true) {
@@ -57,11 +57,11 @@ async function handleChat(options = {}) {
       ]);
 
       if (['exit', 'quit', 'bye'].includes(message.toLowerCase())) {
-        console.log(chalk.green('👋 See you later, Slythnox!'));
+        console.log(chalk.green(' See you later, Slythnox!'));
         break;
       }
 
-      console.log(chalk.blue('\n🤖 Eleven:'));
+      console.log(chalk.blue('\nEleven:'));
       
       try {
         // Stream the response for better UX
