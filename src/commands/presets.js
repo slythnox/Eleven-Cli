@@ -1,107 +1,203 @@
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
 const chalk = require('chalk');
-const { handleChat } = require('./chat');
-const { handleCode } = require('./code');
 
-const presets = {
-  '/help': {
-    description: 'Show available preset commands',
-    handler: () => showHelp()
-  },
-  '/about': {
-    description: 'About Eleven CLI',
-    handler: () => showAbout()
-  },
-  '/write': {
-    description: 'Write code for a specific task',
-    handler: (prompt) => handleCode(`Write clean, well-documented code for: ${prompt}`)
-  },
-  '/explain': {
-    description: 'Explain code, concepts, or files',
-    handler: (prompt) => handleChat({ message: `Please explain in detail: ${prompt}` })
-  },
-  '/suggest': {
-    description: 'Get suggestions for code improvements',
-    handler: (prompt) => handleChat({ message: `Please provide suggestions and improvements for: ${prompt}` })
-  },
-  '/modify': {
-    description: 'Modify or refactor existing code',
-    handler: (prompt) => handleChat({ message: `Please modify and improve this code: ${prompt}` })
-  },
-  '/debug': {
-    description: 'Help debug code issues',
-    handler: (prompt) => handleChat({ message: `Please help debug this issue: ${prompt}` })
-  },
-  '/optimize': {
-    description: 'Optimize code for performance',
-    handler: (prompt) => handleChat({ message: `Please optimize this code for better performance: ${prompt}` })
-  },
-  '/review': {
-    description: 'Review code for best practices',
-    handler: (prompt) => handleChat({ message: `Please review this code and suggest best practices: ${prompt}` })
-  },
-  '/learn': {
-    description: 'Learn about programming concepts',
-    handler: (prompt) => handleChat({ message: `Please teach me about: ${prompt}. Provide examples and explanations.` })
+class VSCodeIntegration {
+  constructor() {
+    this.tempDir = path.join(require('os').tmpdir(), 'eleven-vscode');
+    this.ensureTempDir();
   }
-};
 
-function showHelp() {
-  console.log(chalk.green('\n🚀 Eleven Preset Commands:'));
-  console.log(chalk.gray('─'.repeat(50)));
-  
-  Object.entries(presets).forEach(([command, info]) => {
-    console.log(`${chalk.cyan(command.padEnd(12))} ${chalk.gray(info.description)}`);
-  });
-  
-  console.log(chalk.gray('\n📝 Usage Examples:'));
-  console.log(chalk.yellow('  el /write a Python function to sort a list'));
-  console.log(chalk.yellow('  el /explain what is recursion'));
-  console.log(chalk.yellow('  el /suggest improvements for my React component'));
-  console.log(chalk.yellow('  el /debug why my loop is infinite'));
-  
-  console.log(chalk.gray('\n💡 Direct Usage:'));
-  console.log(chalk.yellow('  el write a REST API in Node.js'));
-  console.log(chalk.yellow('  el how do I center a div in CSS?'));
-  console.log(chalk.yellow('  el explain machine learning basics'));
+  ensureTempDir() {
+    if (!fs.existsSync(this.tempDir)) {
+      fs.mkdirSync(this.tempDir, { recursive: true });
+    }
+  }
+
+  // Create a file that VS Code can watch for changes
+  async createCommandFile(command, filePath = null) {
+    const commandFile = path.join(this.tempDir, 'command.json');
+    const commandData = {
+      command,
+      filePath,
+      timestamp: Date.now(),
+      status: 'pending'
+    };
+    
+    fs.writeFileSync(commandFile, JSON.stringify(commandData, null, 2));
+    return commandFile;
+  }
+
+  // Update command status
+  updateCommandStatus(status, result = null) {
+    const commandFile = path.join(this.tempDir, 'command.json');
+    if (fs.existsSync(commandFile)) {
+      const commandData = JSON.parse(fs.readFileSync(commandFile, 'utf8'));
+      commandData.status = status;
+      commandData.result = result;
+      commandData.completedAt = Date.now();
+      fs.writeFileSync(commandFile, JSON.stringify(commandData, null, 2));
+    }
+  }
+
+  // Check if VS Code is available
+  async checkVSCode() {
+    return new Promise((resolve) => {
+      exec('code --version', (error) => {
+        resolve(!error);
+      });
+    });
+  }
+
+  // Open file in VS Code
+  async openInVSCode(filePath) {
+    const hasVSCode = await this.checkVSCode();
+    if (hasVSCode) {
+      return new Promise((resolve, reject) => {
+        exec(`code "${filePath}"`, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+    throw new Error('VS Code not found in PATH');
+  }
+
+  // Create a diff view in VS Code
+  async showDiff(originalFile, modifiedContent) {
+    const hasVSCode = await this.checkVSCode();
+    if (!hasVSCode) {
+      throw new Error('VS Code not found in PATH');
+    }
+
+    const tempFile = path.join(this.tempDir, `modified_${path.basename(originalFile)}`);
+    fs.writeFileSync(tempFile, modifiedContent);
+
+    return new Promise((resolve, reject) => {
+      exec(`code --diff "${originalFile}" "${tempFile}"`, (error) => {
+        if (error) reject(error);
+        else resolve(tempFile);
+      });
+    });
+  }
+
+  // Generate VS Code settings for Eleven integration
+  generateVSCodeSettings() {
+    const settings = {
+      "eleven.autoFixOnSave": false,
+      "eleven.showDiffBeforeApply": true,
+      "eleven.createBackups": true,
+      "eleven.cliPath": "el",
+      "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/.git/objects/**": true,
+        "**/.eleven-cli/**": true
+      }
+    };
+
+    const tasks = {
+      "version": "2.0.0",
+      "tasks": [
+        {
+          "label": "Eleven: Fix Current File",
+          "type": "shell",
+          "command": "el",
+          "args": ["fix", "${file}"],
+          "group": "build",
+          "presentation": {
+            "echo": true,
+            "reveal": "always",
+            "focus": false,
+            "panel": "shared"
+          }
+        },
+        {
+          "label": "Eleven: Rewrite Current File",
+          "type": "shell",
+          "command": "el",
+          "args": ["rewrite", "${file}"],
+          "group": "build",
+          "presentation": {
+            "echo": true,
+            "reveal": "always",
+            "focus": false,
+            "panel": "shared"
+          }
+        },
+        {
+          "label": "Eleven: Analyze Current File",
+          "type": "shell",
+          "command": "el",
+          "args": ["code", "-f", "${file}"],
+          "group": "build",
+          "presentation": {
+            "echo": true,
+            "reveal": "always",
+            "focus": false,
+            "panel": "shared"
+          }
+        }
+      ]
+    };
+
+    return { settings, tasks };
+  }
+
+  // Setup VS Code workspace for Eleven
+  async setupWorkspace(workspacePath) {
+    const vscodeDir = path.join(workspacePath, '.vscode');
+    
+    if (!fs.existsSync(vscodeDir)) {
+      fs.mkdirSync(vscodeDir, { recursive: true });
+    }
+
+    const { settings, tasks } = this.generateVSCodeSettings();
+
+    // Write settings
+    const settingsPath = path.join(vscodeDir, 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      const existingSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      Object.assign(existingSettings, settings);
+      fs.writeFileSync(settingsPath, JSON.stringify(existingSettings, null, 2));
+    } else {
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    }
+
+    // Write tasks
+    const tasksPath = path.join(vscodeDir, 'tasks.json');
+    fs.writeFileSync(tasksPath, JSON.stringify(tasks, null, 2));
+
+    console.log(chalk.green('✅ VS Code workspace configured for Eleven!'));
+    console.log(chalk.gray('Available tasks:'));
+    console.log(chalk.gray('  • Ctrl+Shift+P → "Tasks: Run Task" → "Eleven: Fix Current File"'));
+    console.log(chalk.gray('  • Ctrl+Shift+P → "Tasks: Run Task" → "Eleven: Rewrite Current File"'));
+    console.log(chalk.gray('  • Ctrl+Shift+P → "Tasks: Run Task" → "Eleven: Analyze Current File"'));
+  }
+
+  // Generate keybindings for VS Code
+  generateKeyBindings() {
+    return [
+      {
+        "key": "ctrl+alt+f",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Eleven: Fix Current File",
+        "when": "editorTextFocus"
+      },
+      {
+        "key": "ctrl+alt+r",
+        "command": "workbench.action.tasks.runTask", 
+        "args": "Eleven: Rewrite Current File",
+        "when": "editorTextFocus"
+      },
+      {
+        "key": "ctrl+alt+a",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Eleven: Analyze Current File", 
+        "when": "editorTextFocus"
+      }
+    ];
+  }
 }
 
-function showAbout() {
-  console.log(chalk.green('\n🤖 About Eleven'));
-  console.log(chalk.gray('─'.repeat(30)));
-  console.log(chalk.cyan('Name:'), 'Eleven - Personal AI Assistant');
-  console.log(chalk.cyan('Creator:'), 'Slythnox');
-  console.log(chalk.cyan('Version:'), '1.0.0');
-  console.log(chalk.cyan('AI Model:'), 'Google Gemini 1.5 Flash');
-  console.log(chalk.cyan('Features:'), 'Code generation, Chat, File analysis, API rotation');
-  console.log(chalk.cyan('Prefix:'), 'el');
-  
-  console.log(chalk.gray('\n🌟 Capabilities:'));
-  console.log(chalk.gray('• Generate code in any programming language'));
-  console.log(chalk.gray('• Explain complex programming concepts'));
-  console.log(chalk.gray('• Debug and optimize existing code'));
-  console.log(chalk.gray('• Provide coding suggestions and best practices'));
-  console.log(chalk.gray('• Interactive chat sessions'));
-  console.log(chalk.gray('• File analysis and code review'));
-  
-  
-}
-
-async function handlePresets(command, prompt) {
-  const preset = presets[command];
-  
-  if (!preset) {
-    console.log(chalk.red(`Unknown preset command: ${command}`));
-    console.log(chalk.yellow('Use "el /help" to see available preset commands'));
-    return;
-  }
-  
-  if (!prompt && command !== '/help' && command !== '/about') {
-    console.log(chalk.yellow(`Please provide a prompt for ${command}`));
-    console.log(chalk.gray(`Example: el ${command} your request here`));
-    return;
-  }
-  
-  await preset.handler(prompt);
-}
-
-module.exports = { handlePresets };
+module.exports = new VSCodeIntegration();
