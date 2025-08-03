@@ -1,4 +1,3 @@
-// bin/eleven.js
 #!/usr/bin/env node
 
 const { program } = require('commander');
@@ -30,14 +29,17 @@ program
   .option('-v, --verbose', 'Enable verbose output')
   .option('--no-welcome', 'Skip welcome message');
 
-// Handle preset commands first
+// Get command line arguments
 const args = process.argv.slice(2);
+
+// Handle preset commands first (commands starting with /)
 if (args.length > 0 && args[0].startsWith('/')) {
   if (!program.opts().noWelcome) showWelcome();
   handlePresets(args[0], args.slice(1).join(' '));
   process.exit(0);
 }
 
+// Define all commands
 program
   .command('chat')
   .description('Start an interactive chat session with Eleven')
@@ -177,7 +179,7 @@ program
     }
   });
 
-// New health check command
+// Health check command
 program
   .command('health')
   .description('Check system health and API connectivity')
@@ -225,44 +227,49 @@ program
     }
   });
 
-// Enhanced direct commands with better error handling
-if (args.length > 0 && !['chat', 'code', 'config', 'ask', 'fix', 'rewrite', 'vscode', 'health', '--help', '-h', '--version', '-V'].includes(args[0])) {
-  if (!program.opts().noWelcome) showWelcome();
+// Handle direct commands (not preset commands starting with /)
+if (args.length > 0) {
+  const commandExists = ['chat', 'code', 'config', 'ask', 'fix', 'rewrite', 'vscode', 'health', '--help', '-h', '--version', '-V'].includes(args[0]);
   
-  const fullPrompt = args.join(' ');
-  
-  // Check if this looks like a file operation
-  const filePattern = /\.(js|ts|py|java|cpp|c|cs|php|rb|go|rs|swift|kt|html|css|json|md|txt|jsx|tsx|vue|svelte)$/i;
-  const hasFile = args.some(arg => filePattern.test(arg));
-  
-  (async () => {
-    try {
-      if (hasFile) {
-        // Try to detect file operations
-        const fileArg = args.find(arg => filePattern.test(arg));
-        const remainingArgs = args.filter(arg => arg !== fileArg);
-        
-        if (remainingArgs.some(arg => ['fix', 'rewrite', 'modify', 'improve', 'optimize', 'debug'].includes(arg.toLowerCase()))) {
-          // This looks like a file modification command
-          await handleCode(remainingArgs.join(' '), { file: fileArg, modify: true });
+  if (!commandExists) {
+    // This is a direct chat command
+    if (!program.opts().noWelcome) showWelcome();
+    
+    const fullPrompt = args.join(' ');
+    
+    // Check if this looks like a file operation
+    const filePattern = /\.(js|ts|py|java|cpp|c|cs|php|rb|go|rs|swift|kt|html|css|json|md|txt|jsx|tsx|vue|svelte)$/i;
+    const hasFile = args.some(arg => filePattern.test(arg));
+    
+    (async () => {
+      try {
+        if (hasFile) {
+          // Try to detect file operations
+          const fileArg = args.find(arg => filePattern.test(arg));
+          const remainingArgs = args.filter(arg => arg !== fileArg);
+          
+          if (remainingArgs.some(arg => ['fix', 'rewrite', 'modify', 'improve', 'optimize', 'debug'].includes(arg.toLowerCase()))) {
+            // This looks like a file modification command
+            await handleCode(remainingArgs.join(' '), { file: fileArg, modify: true });
+          } else {
+            // Regular chat with file context
+            await handleChat({ message: fullPrompt });
+          }
         } else {
-          // Regular chat with file context
           await handleChat({ message: fullPrompt });
         }
-      } else {
-        await handleChat({ message: fullPrompt });
+      } catch (error) {
+        console.error(chalk.red(`❌ Command error: ${error.message}`));
+        if (error.message.includes('API key')) {
+          console.log(chalk.yellow('💡 Run: el config'));
+        }
+        process.exit(1);
       }
-    } catch (error) {
-      console.error(chalk.red(`❌ Command error: ${error.message}`));
-      if (error.message.includes('API key')) {
-        console.log(chalk.yellow('💡 Run: el config'));
-      }
-      process.exit(1);
-    }
-  })();
-  
-  // Don't continue to parse() if we handled a direct command
-  process.exit(0);
+    })();
+    
+    // Exit to prevent continuing to parse
+    return;
+  }
 }
 
 // Handle unknown commands
@@ -342,6 +349,9 @@ if (process.argv.length <= 2) {
   
   console.log(chalk.gray('For detailed help: el --help'));
   console.log('');
+  
+  // Don't parse if just showing help
+  return;
 }
 
 // Parse command line arguments
