@@ -1,142 +1,264 @@
+const geminiService = require("../services/gemini");
 const chalk = require("chalk");
-const { handleChat } = require("./chat");
-const { handleCode } = require("./code");
+const ora = require("ora");
+const fs = require("fs");
+const path = require("path");
+const inquirer = require("inquirer");
 
-const presets = {
-  "/help": {
-    description: "Show available preset commands",
-    handler: () => showHelp(),
-  },
-  "/about": {
-    description: "About Eleven CLI",
-    handler: () => showAbout(),
-  },
-  "/write": {
-    description: "Write code for a specific task",
-    handler: (prompt) =>
-      handleCode(`Write clean, well-documented code for: ${prompt}`),
-  },
-  "/explain": {
-    description: "Explain code, concepts, or files",
-    handler: (prompt) =>
-      handleChat({ message: `Please explain in detail: ${prompt}` }),
-  },
-  "/suggest": {
-    description: "Get suggestions for code improvements",
-    handler: (prompt) =>
-      handleChat({
-        message: `Please provide suggestions and improvements for: ${prompt}`,
-      }),
-  },
-  "/modify": {
-    description: "Modify or refactor existing code",
-    handler: (prompt) =>
-      handleChat({ message: `Please modify and improve this code: ${prompt}` }),
-  },
-  "/debug": {
-    description: "Help debug code issues",
-    handler: (prompt) =>
-      handleChat({ message: `Please help debug this issue: ${prompt}` }),
-  },
-  "/optimize": {
-    description: "Optimize code for performance",
-    handler: (prompt) =>
-      handleChat({
-        message: `Please optimize this code for better performance: ${prompt}`,
-      }),
-  },
-  "/review": {
-    description: "Review code for best practices",
-    handler: (prompt) =>
-      handleChat({
-        message: `Please review this code and suggest best practices: ${prompt}`,
-      }),
-  },
-  "/learn": {
-    description: "Learn about programming concepts",
-    handler: (prompt) =>
-      handleChat({
-        message: `Please teach me about: ${prompt}. Provide examples and explanations.`,
-      }),
-  },
-};
+async function handleCode(prompt, options = {}) {
+  try {
+    let fullPrompt = "";
+    let originalFile = null;
+    let originalContent = null;
 
-function showHelp() {
-  console.log(chalk.green("\n🚀 Eleven Preset Commands:"));
+    if (options.file) {
+      // Analyze existing code file
+      if (!fs.existsSync(options.file)) {
+        console.error(chalk.red(`File not found: ${options.file}`));
+        return;
+      }
+
+      originalFile = options.file;
+      originalContent = fs.readFileSync(options.file, "utf8");
+
+      if (options.fix || options.rewrite || options.modify) {
+        // Mode for modifying existing files
+        fullPrompt = `Please analyze this code and provide the complete rewritten/fixed version:\n\n\`\`\`${path
+          .extname(options.file)
+          .slice(1)}\n${originalContent}\n\`\`\``;
+
+        if (prompt) {
+          fullPrompt += `\n\nSpecific request: ${prompt}`;
+        }
+
+        fullPrompt +=
+          "\n\nPlease provide ONLY the complete corrected code without explanations. The code should be production-ready.";
+      } else {
+        // Analysis mode
+        fullPrompt = `Please analyze and explain this code file (${
+          options.file
+        }):\n\n\`\`\`${path
+          .extname(options.file)
+          .slice(1)}\n${originalContent}\n\`\`\``;
+
+        if (prompt) {
+          fullPrompt += `\n\nAdditional request: ${prompt}`;
+        }
+      }
+    } else if (prompt) {
+      // Generate new code
+      fullPrompt = `Please help me with this coding request: ${prompt}`;
+
+      if (options.language) {
+        fullPrompt += `\n\nPlease use ${options.language} programming language.`;
+      }
+
+      if (options.output) {
+        fullPrompt +=
+          "\n\nPlease provide clean, well-documented code with explanations.";
+      } else {
+        fullPrompt +=
+          "\n\nPlease provide ONLY the code without explanations if this is for file output.";
+      }
+    } else {
+      console.log(
+        chalk.yellow("Please provide either a prompt or a file to analyze.")
+      );
+      console.log(chalk.gray("Examples:"));
+      console.log(
+        chalk.gray(
+          '  el code "create a function to sort an array" -o myfile.js'
+        )
+      );
+      console.log(chalk.gray("  el code -f myfile.js --fix"));
+      console.log(
+        chalk.gray('  el code -f myfile.js --modify "add error handling"')
+      );
+      console.log(chalk.gray('  el code -l python "create a web scraper"'));
+      return;
+    }
+
+    const spinner = ora("Generating code...").start();
+
+    try {
+      const response = await geminiService.generateResponse(fullPrompt);
+      spinner.stop();
+
+      // Extract code blocks from response
+      const codeBlocks = extractCodeBlocks(response);
+
+      if (options.fix || options.rewrite || options.modify) {
+        // Handle file modification
+        await handleFileModification(
+          originalFile,
+          originalContent,
+          response,
+          codeBlocks
+        );
+      } else if (options.output) {
+        // Handle new file creation
+        await handleFileCreation(options.output, response, codeBlocks);
+      } else {
+        // Regular display mode
+        console.log(chalk.blue("\n🤖 Eleven Code Assistant:"));
+        console.log(response);
+        console.log("");
+      }
+    } catch (error) {
+      spinner.fail(`Error: ${error.message}`);
+    }
+  } catch (error) {
+    console.error(chalk.red(`Error: ${error.message}`));
+    process.exit(1);
+  }
+}
+
+function extractCodeBlocks(response) {
+  const codeBlockRegex = /```(?:\w+)?\n([\s\S]*?)```/g;
+  const blocks = [];
+  let match;
+
+  while ((match = codeBlockRegex.exec(response)) !== null) {
+    blocks.push(match[1].trim());
+  }
+
+  return blocks;
+}
+
+async function handleFileModification(
+  filePath,
+  originalContent,
+  response,
+  codeBlocks
+) {
+  console.log(chalk.blue("\n🔧 Code Modification Results:"));
+
+  if (codeBlocks.length === 0) {
+    console.log(
+      chalk.yellow("No code blocks found in response. Showing full response:")
+    );
+    console.log(response);
+    return;
+  }
+
+  const newContent = codeBlocks[0]; // Use the first code block
+
+  // Show diff preview
+  console.log(chalk.gray("\n📝 Changes Preview:"));
+  console.log(
+    chalk.red("- Original lines: ") + originalContent.split("\n").length
+  );
+  console.log(
+    chalk.green("+ Modified lines: ") + newContent.split("\n").length
+  );
+
+  // Ask for confirmation
+  const { confirm } = await inquirer.prompt([
+    {
+      type: "confirm",
+      name: "confirm",
+      message: chalk.yellow(`Apply changes to ${filePath}?`),
+      default: false,
+    },
+  ]);
+
+  if (confirm) {
+    // Create backup
+    const backupPath = `${filePath}.backup.${Date.now()}`;
+    fs.writeFileSync(backupPath, originalContent);
+    console.log(chalk.gray(`📋 Backup created: ${backupPath}`));
+
+    // Write new content
+    fs.writeFileSync(filePath, newContent);
+    console.log(chalk.green(`✅ File updated: ${filePath}`));
+
+    // Offer to show the changes
+    const { showChanges } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "showChanges",
+        message: "Show the updated code?",
+        default: true,
+      },
+    ]);
+
+    if (showChanges) {
+      console.log(chalk.blue("\n📄 Updated Code:"));
+      console.log(chalk.gray("─".repeat(50)));
+      console.log(newContent);
+      console.log(chalk.gray("─".repeat(50)));
+    }
+  } else {
+    console.log(chalk.yellow("Changes cancelled. File unchanged."));
+
+    // Still show the proposed changes
+    console.log(chalk.blue("\n📄 Proposed Changes:"));
+    console.log(chalk.gray("─".repeat(50)));
+    console.log(newContent);
+    console.log(chalk.gray("─".repeat(50)));
+  }
+}
+
+async function handleFileCreation(outputPath, response, codeBlocks) {
+  console.log(chalk.blue("\n💾 Creating New File:"));
+
+  if (codeBlocks.length === 0) {
+    console.log(
+      chalk.yellow("No code blocks found. Using full response as content.")
+    );
+    const content = response;
+
+    const { confirm } = await inquirer.prompt([
+      {
+        type: "confirm",
+        name: "confirm",
+        message: chalk.yellow(`Create file ${outputPath}?`),
+        default: true,
+      },
+    ]);
+
+    if (confirm) {
+      // Ensure directory exists
+      const dir = path.dirname(outputPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      fs.writeFileSync(outputPath, content);
+      console.log(chalk.green(`✅ File created: ${outputPath}`));
+    }
+    return;
+  }
+
+  const content = codeBlocks[0]; // Use the first code block
+
+  // Preview the content
+  console.log(chalk.gray("\n📝 File Preview:"));
+  console.log(chalk.gray("─".repeat(50)));
+  console.log(
+    content.substring(0, 500) + (content.length > 500 ? "\n...(truncated)" : "")
+  );
   console.log(chalk.gray("─".repeat(50)));
 
-  Object.entries(presets).forEach(([command, info]) => {
-    console.log(
-      `${chalk.cyan(command.padEnd(12))} ${chalk.gray(info.description)}`
-    );
-  });
+  const { confirm } = await inquirer.prompt([
+    {
+      type: "confirm",
+      name: "confirm",
+      message: chalk.yellow(`Create file ${outputPath}?`),
+      default: true,
+    },
+  ]);
 
-  console.log(chalk.gray("\n📝 Usage Examples:"));
-  console.log(
-    chalk.yellow(`
-  el /write a Python function to sort a list
-  el /explain what is recursion
-  el /suggest improvements for my React component
-  el /debug why my loop is infinite
-`)
-  );
+  if (confirm) {
+    // Ensure directory exists
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-  console.log(chalk.gray("\n💡 Direct Usage:"));
-  console.log(
-    chalk.yellow(`
-  el write a REST API in Node.js
-  el how do I center a div in CSS?
-  el explain machine learning basics
-`)
-  );
-}
-
-function showAbout() {
-  console.log(chalk.green("\n🤖 About Eleven"));
-  console.log(chalk.gray("─".repeat(30)));
-  console.log(`
-${chalk.cyan("Name:")}     Eleven - Personal AI Assistant
-${chalk.cyan("Creator:")}  Slythnox
-${chalk.cyan("Version:")}  1.0.0
-${chalk.cyan("AI Model:")} Google Gemini 1.5 Flash
-${chalk.cyan("Features:")} Code generation, Chat, File analysis, API rotation
-${chalk.cyan("Prefix:")}   el
-`);
-
-  console.log(
-    chalk.gray(`
-🌟 Capabilities:
-• Generate code in any programming language
-• Explain complex programming concepts
-• Debug and optimize existing code
-• Provide coding suggestions and best practices
-• Interactive chat sessions
-• File analysis and code review
-`)
-  );
-}
-
-async function handlePresets(command, prompt) {
-  const preset = presets[command];
-
-  if (!preset) {
-    console.log(chalk.red(`Unknown preset command: ${command}`));
-    console.log(
-      chalk.yellow('Use "el /help" to see available preset commands')
-    );
-    return;
+    fs.writeFileSync(outputPath, content);
+    console.log(chalk.green(`✅ File created: ${outputPath}`));
   }
-
-  if (!prompt && command !== "/help" && command !== "/about") {
-    console.log(
-      `${chalk.yellow(`Please provide a prompt for ${command}`)}\n` +
-        `${chalk.gray(`Example: el ${command} your request here`)}`
-    );
-
-    return;
-  }
-
-  await preset.handler(prompt);
 }
 
-module.exports = { handlePresets };
+module.exports = { handleCode };

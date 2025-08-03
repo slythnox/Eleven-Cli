@@ -90,12 +90,10 @@ el config -r  # Enable rotation
           console.log(
             chalk.yellow("💡 Tip: Add more API keys to avoid rate limits:")
           );
-          console.log(
-            chalk.gray(`
+          chalk.gray(`
 el config -a YOUR_ADDITIONAL_KEY
 el config -r  # Enable rotation
-`)
-          );
+`);
         }
       }
     }
