@@ -1,203 +1,229 @@
+const geminiService = require('../services/gemini');
+const chalk = require('chalk');
+const ora = require('ora');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
-const chalk = require('chalk');
+const inquirer = require('inquirer');
 
-class VSCodeIntegration {
-  constructor() {
-    this.tempDir = path.join(require('os').tmpdir(), 'eleven-vscode');
-    this.ensureTempDir();
-  }
-
-  ensureTempDir() {
-    if (!fs.existsSync(this.tempDir)) {
-      fs.mkdirSync(this.tempDir, { recursive: true });
-    }
-  }
-
-  // Create a file that VS Code can watch for changes
-  async createCommandFile(command, filePath = null) {
-    const commandFile = path.join(this.tempDir, 'command.json');
-    const commandData = {
-      command,
-      filePath,
-      timestamp: Date.now(),
-      status: 'pending'
-    };
+async function handleCode(prompt, options = {}) {
+  try {
+    let fullPrompt = '';
+    let originalFile = null;
+    let originalContent = null;
     
-    fs.writeFileSync(commandFile, JSON.stringify(commandData, null, 2));
-    return commandFile;
-  }
-
-  // Update command status
-  updateCommandStatus(status, result = null) {
-    const commandFile = path.join(this.tempDir, 'command.json');
-    if (fs.existsSync(commandFile)) {
-      const commandData = JSON.parse(fs.readFileSync(commandFile, 'utf8'));
-      commandData.status = status;
-      commandData.result = result;
-      commandData.completedAt = Date.now();
-      fs.writeFileSync(commandFile, JSON.stringify(commandData, null, 2));
-    }
-  }
-
-  // Check if VS Code is available
-  async checkVSCode() {
-    return new Promise((resolve) => {
-      exec('code --version', (error) => {
-        resolve(!error);
-      });
-    });
-  }
-
-  // Open file in VS Code
-  async openInVSCode(filePath) {
-    const hasVSCode = await this.checkVSCode();
-    if (hasVSCode) {
-      return new Promise((resolve, reject) => {
-        exec(`code "${filePath}"`, (error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    }
-    throw new Error('VS Code not found in PATH');
-  }
-
-  // Create a diff view in VS Code
-  async showDiff(originalFile, modifiedContent) {
-    const hasVSCode = await this.checkVSCode();
-    if (!hasVSCode) {
-      throw new Error('VS Code not found in PATH');
-    }
-
-    const tempFile = path.join(this.tempDir, `modified_${path.basename(originalFile)}`);
-    fs.writeFileSync(tempFile, modifiedContent);
-
-    return new Promise((resolve, reject) => {
-      exec(`code --diff "${originalFile}" "${tempFile}"`, (error) => {
-        if (error) reject(error);
-        else resolve(tempFile);
-      });
-    });
-  }
-
-  // Generate VS Code settings for Eleven integration
-  generateVSCodeSettings() {
-    const settings = {
-      "eleven.autoFixOnSave": false,
-      "eleven.showDiffBeforeApply": true,
-      "eleven.createBackups": true,
-      "eleven.cliPath": "el",
-      "files.watcherExclude": {
-        "**/node_modules/**": true,
-        "**/.git/objects/**": true,
-        "**/.eleven-cli/**": true
+    if (options.file) {
+      // Analyze existing code file
+      if (!fs.existsSync(options.file)) {
+        console.error(chalk.red(`File not found: ${options.file}`));
+        return;
       }
-    };
-
-    const tasks = {
-      "version": "2.0.0",
-      "tasks": [
-        {
-          "label": "Eleven: Fix Current File",
-          "type": "shell",
-          "command": "el",
-          "args": ["fix", "${file}"],
-          "group": "build",
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "shared"
-          }
-        },
-        {
-          "label": "Eleven: Rewrite Current File",
-          "type": "shell",
-          "command": "el",
-          "args": ["rewrite", "${file}"],
-          "group": "build",
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "shared"
-          }
-        },
-        {
-          "label": "Eleven: Analyze Current File",
-          "type": "shell",
-          "command": "el",
-          "args": ["code", "-f", "${file}"],
-          "group": "build",
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "shared"
-          }
+      
+      originalFile = options.file;
+      originalContent = fs.readFileSync(options.file, 'utf8');
+      
+      if (options.fix || options.rewrite || options.modify) {
+        // Mode for modifying existing files
+        fullPrompt = `Please analyze this code and provide the complete rewritten/fixed version:\n\n\`\`\`${path.extname(options.file).slice(1)}\n${originalContent}\n\`\`\``;
+        
+        if (prompt) {
+          fullPrompt += `\n\nSpecific request: ${prompt}`;
         }
-      ]
-    };
-
-    return { settings, tasks };
-  }
-
-  // Setup VS Code workspace for Eleven
-  async setupWorkspace(workspacePath) {
-    const vscodeDir = path.join(workspacePath, '.vscode');
-    
-    if (!fs.existsSync(vscodeDir)) {
-      fs.mkdirSync(vscodeDir, { recursive: true });
-    }
-
-    const { settings, tasks } = this.generateVSCodeSettings();
-
-    // Write settings
-    const settingsPath = path.join(vscodeDir, 'settings.json');
-    if (fs.existsSync(settingsPath)) {
-      const existingSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      Object.assign(existingSettings, settings);
-      fs.writeFileSync(settingsPath, JSON.stringify(existingSettings, null, 2));
-    } else {
-      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-    }
-
-    // Write tasks
-    const tasksPath = path.join(vscodeDir, 'tasks.json');
-    fs.writeFileSync(tasksPath, JSON.stringify(tasks, null, 2));
-
-    console.log(chalk.green('✅ VS Code workspace configured for Eleven!'));
-    console.log(chalk.gray('Available tasks:'));
-    console.log(chalk.gray('  • Ctrl+Shift+P → "Tasks: Run Task" → "Eleven: Fix Current File"'));
-    console.log(chalk.gray('  • Ctrl+Shift+P → "Tasks: Run Task" → "Eleven: Rewrite Current File"'));
-    console.log(chalk.gray('  • Ctrl+Shift+P → "Tasks: Run Task" → "Eleven: Analyze Current File"'));
-  }
-
-  // Generate keybindings for VS Code
-  generateKeyBindings() {
-    return [
-      {
-        "key": "ctrl+alt+f",
-        "command": "workbench.action.tasks.runTask",
-        "args": "Eleven: Fix Current File",
-        "when": "editorTextFocus"
-      },
-      {
-        "key": "ctrl+alt+r",
-        "command": "workbench.action.tasks.runTask", 
-        "args": "Eleven: Rewrite Current File",
-        "when": "editorTextFocus"
-      },
-      {
-        "key": "ctrl+alt+a",
-        "command": "workbench.action.tasks.runTask",
-        "args": "Eleven: Analyze Current File", 
-        "when": "editorTextFocus"
+        
+        fullPrompt += '\n\nPlease provide ONLY the complete corrected code without explanations. The code should be production-ready.';
+      } else {
+        // Analysis mode
+        fullPrompt = `Please analyze and explain this code file (${options.file}):\n\n\`\`\`${path.extname(options.file).slice(1)}\n${originalContent}\n\`\`\``;
+        
+        if (prompt) {
+          fullPrompt += `\n\nAdditional request: ${prompt}`;
+        }
       }
-    ];
+    } else if (prompt) {
+      // Generate new code
+      fullPrompt = `Please help me with this coding request: ${prompt}`;
+      
+      if (options.language) {
+        fullPrompt += `\n\nPlease use ${options.language} programming language.`;
+      }
+      
+      if (options.output) {
+        fullPrompt += '\n\nPlease provide clean, well-documented code with explanations.';
+      } else {
+        fullPrompt += '\n\nPlease provide ONLY the code without explanations if this is for file output.';
+      }
+    } else {
+      console.log(chalk.yellow('Please provide either a prompt or a file to analyze.'));
+      console.log(chalk.gray('Examples:'));
+      console.log(chalk.gray('  el code "create a function to sort an array" -o myfile.js'));
+      console.log(chalk.gray('  el code -f myfile.js --fix'));
+      console.log(chalk.gray('  el code -f myfile.js --modify "add error handling"'));
+      console.log(chalk.gray('  el code -l python "create a web scraper"'));
+      return;
+    }
+
+    const spinner = ora('Generating code...').start();
+    
+    try {
+      const response = await geminiService.generateResponse(fullPrompt);
+      spinner.stop();
+      
+      // Extract code blocks from response
+      const codeBlocks = extractCodeBlocks(response);
+      
+      if (options.fix || options.rewrite || options.modify) {
+        // Handle file modification
+        await handleFileModification(originalFile, originalContent, response, codeBlocks);
+      } else if (options.output) {
+        // Handle new file creation
+        await handleFileCreation(options.output, response, codeBlocks);
+      } else {
+        // Regular display mode
+        console.log(chalk.blue('\n🤖 Eleven Code Assistant:'));
+        console.log(response);
+        console.log('');
+      }
+      
+    } catch (error) {
+      spinner.fail(`Error: ${error.message}`);
+    }
+    
+  } catch (error) {
+    console.error(chalk.red(`Error: ${error.message}`));
+    process.exit(1);
   }
 }
 
-module.exports = new VSCodeIntegration();
+function extractCodeBlocks(response) {
+  const codeBlockRegex = /```(?:\w+)?\n([\s\S]*?)```/g;
+  const blocks = [];
+  let match;
+  
+  while ((match = codeBlockRegex.exec(response)) !== null) {
+    blocks.push(match[1].trim());
+  }
+  
+  return blocks;
+}
+
+async function handleFileModification(filePath, originalContent, response, codeBlocks) {
+  console.log(chalk.blue('\n🔧 Code Modification Results:'));
+  
+  if (codeBlocks.length === 0) {
+    console.log(chalk.yellow('No code blocks found in response. Showing full response:'));
+    console.log(response);
+    return;
+  }
+  
+  const newContent = codeBlocks[0]; // Use the first code block
+  
+  // Show diff preview
+  console.log(chalk.gray('\n📝 Changes Preview:'));
+  console.log(chalk.red('- Original lines: ') + originalContent.split('\n').length);
+  console.log(chalk.green('+ Modified lines: ') + newContent.split('\n').length);
+  
+  // Ask for confirmation
+  const { confirm } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: chalk.yellow(`Apply changes to ${filePath}?`),
+      default: false
+    }
+  ]);
+  
+  if (confirm) {
+    // Create backup
+    const backupPath = `${filePath}.backup.${Date.now()}`;
+    fs.writeFileSync(backupPath, originalContent);
+    console.log(chalk.gray(`📋 Backup created: ${backupPath}`));
+    
+    // Write new content
+    fs.writeFileSync(filePath, newContent);
+    console.log(chalk.green(`✅ File updated: ${filePath}`));
+    
+    // Offer to show the changes
+    const { showChanges } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'showChanges',
+        message: 'Show the updated code?',
+        default: true
+      }
+    ]);
+    
+    if (showChanges) {
+      console.log(chalk.blue('\n📄 Updated Code:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      console.log(newContent);
+      console.log(chalk.gray('─'.repeat(50)));
+    }
+  } else {
+    console.log(chalk.yellow('Changes cancelled. File unchanged.'));
+    
+    // Still show the proposed changes
+    console.log(chalk.blue('\n📄 Proposed Changes:'));
+    console.log(chalk.gray('─'.repeat(50)));
+    console.log(newContent);
+    console.log(chalk.gray('─'.repeat(50)));
+  }
+}
+
+async function handleFileCreation(outputPath, response, codeBlocks) {
+  console.log(chalk.blue('\n💾 Creating New File:'));
+  
+  if (codeBlocks.length === 0) {
+    console.log(chalk.yellow('No code blocks found. Using full response as content.'));
+    const content = response;
+    
+    const { confirm } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'confirm',
+        message: chalk.yellow(`Create file ${outputPath}?`),
+        default: true
+      }
+    ]);
+    
+    if (confirm) {
+      // Ensure directory exists
+      const dir = path.dirname(outputPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      fs.writeFileSync(outputPath, content);
+      console.log(chalk.green(`✅ File created: ${outputPath}`));
+    }
+    return;
+  }
+  
+  const content = codeBlocks[0]; // Use the first code block
+  
+  // Preview the content
+  console.log(chalk.gray('\n📝 File Preview:'));
+  console.log(chalk.gray('─'.repeat(50)));
+  console.log(content.substring(0, 500) + (content.length > 500 ? '\n...(truncated)' : ''));
+  console.log(chalk.gray('─'.repeat(50)));
+  
+  const { confirm } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: chalk.yellow(`Create file ${outputPath}?`),
+      default: true
+    }
+  ]);
+  
+  if (confirm) {
+    // Ensure directory exists
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    
+    fs.writeFileSync(outputPath, content);
+    console.log(chalk.green(`✅ File created: ${outputPath}`));
+  }
+}
+
+module.exports = { handleCode };
