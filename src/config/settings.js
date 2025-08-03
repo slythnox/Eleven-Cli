@@ -1,9 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
-const CONFIG_DIR = path.join(os.homedir(), '.eleven-cli');
-const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+const CONFIG_DIR = path.join(os.homedir(), ".eleven-cli");
+const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
 
 class Settings {
   constructor() {
@@ -19,40 +19,40 @@ class Settings {
   getConfig() {
     try {
       if (fs.existsSync(CONFIG_FILE)) {
-        const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        const config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
         return config;
       }
     } catch (error) {
-      // Return default config if file doesn't exist or is corrupted
+      console.error("Error getting config:", error);
     }
-    
+
     return {
       apiKey: null,
       apiKeys: [],
       useRotation: false,
       currentKeyIndex: 0,
-      model: 'gemini-1.5-flash',
+      model: "gemini-1.5-flash",
       maxTokens: 8192,
-      temperature: 0.7
+      temperature: 0.7,
     };
   }
 
   setConfig(newConfig) {
     const currentConfig = this.getConfig();
     const updatedConfig = { ...currentConfig, ...newConfig };
-    
+
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updatedConfig, null, 2));
     return updatedConfig;
   }
 
   getApiKey() {
     const config = this.getConfig();
-    
+
     // Use rotation if enabled and multiple keys available
     if (config.useRotation && config.apiKeys && config.apiKeys.length > 0) {
       return config.apiKeys[config.currentKeyIndex % config.apiKeys.length];
     }
-    
+
     return config.apiKey || process.env.GEMINI_API_KEY;
   }
 
@@ -63,12 +63,12 @@ class Settings {
   addApiKey(apiKey) {
     const config = this.getConfig();
     const apiKeys = config.apiKeys || [];
-    
+
     if (!apiKeys.includes(apiKey)) {
       apiKeys.push(apiKey);
       return this.setConfig({ apiKeys });
     }
-    
+
     return config;
   }
 

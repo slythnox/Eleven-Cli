@@ -41,7 +41,7 @@ async function handleCode(prompt, options = {}) {
     } else if (prompt) {
       // Generate new code
       fullPrompt = `Please help me with this coding request: ${prompt}`;
-      
+
       if (options.language) {
         fullPrompt += `\n\nPlease use ${options.language} programming language.`;
       }
@@ -61,8 +61,8 @@ async function handleCode(prompt, options = {}) {
       return;
     }
 
-    const spinner = ora('Generating code...').start();
-    
+    const spinner = ora("Generating code...").start();
+
     try {
       const response = await geminiService.generateResponse(fullPrompt);
       spinner.stop();
@@ -86,7 +86,6 @@ async function handleCode(prompt, options = {}) {
     } catch (error) {
       spinner.fail(`Error: ${error.message}`);
     }
-    
   } catch (error) {
     console.error(chalk.red(`Error: ${error.message}`));
     process.exit(1);
