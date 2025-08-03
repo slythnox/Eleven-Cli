@@ -4,25 +4,20 @@
   "description": "Eleven - Your Personal AI Assistant CLI | Chat, Code, Create with Gemini AI",
   "main": "bin/eleven.js",
   "bin": {
-    "el": "./bin/eleven.js",
+    "eleven-cli": "./bin/eleven.js",
     "eleven": "./bin/eleven.js"
   },
   "scripts": {
     "start": "node bin/eleven.js",
-    "install-global": "npm link",
-    "uninstall-global": "npm unlink -g eleven-cli",
-    "test": "npm run test:cli && npm run test:health",
-    "test:cli": "node bin/eleven.js --help",
-    "test:health": "node bin/eleven.js health",
+    "install-global": "npm install -g .",
+    "uninstall-global": "npm uninstall -g eleven-cli",
+    "test": "node bin/eleven.js --help",
     "test:config": "node bin/eleven.js config --show",
+    "test:health": "node bin/eleven.js health",
     "dev": "node bin/eleven.js",
-    "dev:verbose": "node bin/eleven.js --verbose",
-    "build": "echo 'No build step required for CLI'",
-    "lint": "echo 'Linting... (Add ESLint if needed)'",
-    "clean": "rm -rf node_modules package-lock.json",
-    "reset-config": "node bin/eleven.js config --reset",
-    "setup": "node scripts/setup.js",
-    "postinstall": "node scripts/post-install.js"
+    "link": "npm link",
+    "unlink": "npm unlink",
+    "setup": "chmod +x bin/eleven.js && npm link"
   },
   "dependencies": {
     "@google/generative-ai": "^0.15.0",
@@ -30,10 +25,6 @@
     "commander": "^11.0.0",
     "inquirer": "^8.2.6",
     "ora": "^5.4.1"
-  },
-  "devDependencies": {
-    "eslint": "^8.57.0",
-    "prettier": "^3.0.0"
   },
   "keywords": [
     "ai",
@@ -46,50 +37,21 @@
     "automation",
     "chat",
     "developer-tools",
-    "productivity",
-    "artificial-intelligence",
-    "code-analysis",
-    "file-operations",
-    "vscode-integration"
+    "productivity"
   ],
-  "author": {
-    "name": "Slythnox",
-    "email": "slythnox@example.com",
-    "url": "https://github.com/slythnox"
-  },
+  "author": "Slythnox",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=16.0.0"
   },
   "preferGlobal": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/slythnox/eleven-cli.git"
   },
-  "bugs": {
-    "url": "https://github.com/slythnox/eleven-cli/issues"
-  },
-  "homepage": "https://github.com/slythnox/eleven-cli#readme",
   "files": [
     "bin/",
     "src/",
-    "scripts/",
-    "README.md",
-    "LICENSE"
-  ],
-  "os": [
-    "darwin",
-    "linux",
-    "win32"
-  ],
-  "config": {
-    "name": "Eleven CLI",
-    "version": "1.0.0",
-    "author": "Slythnox"
-  },
-  "funding": {
-    "type": "github",
-    "url": "https://github.com/sponsors/slythnox"
-  }
+    "README.md"
+  ]
 }
