@@ -35,9 +35,7 @@ async function handleCode(prompt, options = {}) {
           "\n\nPlease provide ONLY the complete corrected code without explanations. The code should be production-ready.";
       } else {
         // Analysis mode
-        fullPrompt = `Please analyze and explain this code file (${
-          options.file
-        }):\n\n\`\`\`${path
+        fullPrompt = `Please analyze and explain this code file (${options.file}):\n\n\`\`\`${path
           .extname(options.file)
           .slice(1)}\n${originalContent}\n\`\`\``;
 
@@ -66,9 +64,7 @@ async function handleCode(prompt, options = {}) {
       );
       console.log(chalk.gray("Examples:"));
       console.log(
-        chalk.gray(
-          '  el code "create a function to sort an array" -o myfile.js'
-        )
+        chalk.gray('  el code "create a function to sort an array" -o myfile.js')
       );
       console.log(chalk.gray("  el code -f myfile.js --fix"));
       console.log(
