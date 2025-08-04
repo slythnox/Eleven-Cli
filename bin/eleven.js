@@ -48,7 +48,18 @@ const args = process.argv.slice(2);
 // Handle preset commands first (commands starting with /)
 if (args.length > 0 && args[0].startsWith('/')) {
   if (!program.opts().noWelcome) showWelcome();
-  handlePresets(args[0], args.slice(1).join(' '));
+  
+  (async () => {
+    try {
+      await handlePresets(args[0], args.slice(1).join(' '));
+    } catch (error) {
+      console.error(chalk.red(`❌ Preset command error: ${error.message}`));
+      if (error.message.includes('API key')) {
+        console.log(chalk.yellow('💡 Run: el config'));
+      }
+      process.exit(1);
+    }
+  })();
   process.exit(0);
 }
 

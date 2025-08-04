@@ -146,6 +146,12 @@ class Settings {
   getApiKey() {
     const config = this.getConfig();
 
+    // Check environment variables first
+    const envKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (envKey && this.validateApiKeyFormat(envKey)) {
+      return envKey;
+    }
+
     // Use rotation if enabled and multiple keys available
     if (config.useRotation && config.apiKeys && config.apiKeys.length > 0) {
       const currentKey = config.apiKeys[config.currentKeyIndex % config.apiKeys.length];
@@ -155,7 +161,7 @@ class Settings {
     }
 
     // Fall back to primary API key or environment variable
-    return config.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    return config.apiKey;
   }
 
   setApiKey(apiKey) {

@@ -51,6 +51,7 @@ async function handlePresets(command, additionalPrompt = '') {
     const spinner = ora('Processing your request...').start();
 
     try {
+      console.log('Calling Gemini service with prompt:', fullPrompt.substring(0, 100) + '...');
       const response = await geminiService.generateResponse(fullPrompt);
       spinner.stop();
 
@@ -59,6 +60,7 @@ async function handlePresets(command, additionalPrompt = '') {
       console.log('');
     } catch (error) {
       spinner.fail(`Error: ${error.message}`);
+      console.error('Full error details:', error);
       if (error.message.includes('rate limit') || error.message.includes('quota')) {
         console.log(chalk.yellow('\n💡 Tip: Add more API keys to avoid rate limits:'));
         console.log(chalk.gray('el config -a YOUR_ADDITIONAL_KEY'));

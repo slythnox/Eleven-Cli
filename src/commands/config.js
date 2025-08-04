@@ -116,10 +116,12 @@ async function showCurrentConfig() {
     // Health check
     console.log(chalk.gray("\n⚡ Connection Status:"));
     try {
+      console.log("Testing API connection...");
       const geminiService = require("../services/gemini");
       const isHealthy = await geminiService.healthCheck();
       console.log(`${chalk.cyan("🔗 Gemini API:")} ${isHealthy ? "✅ Connected" : "❌ Connection Failed"}`);
     } catch (error) {
+      console.error("Health check error details:", error);
       console.log(`${chalk.cyan("🔗 Gemini API:")} ${chalk.red("❌ Error: " + error.message)}`);
     }
     

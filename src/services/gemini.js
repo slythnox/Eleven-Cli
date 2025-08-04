@@ -146,7 +146,15 @@ class GeminiService {
   }
 
   async generateResponse(prompt = {}) {
-    const promptText = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
+    let promptText;
+    if (typeof prompt === 'string') {
+      promptText = prompt;
+    } else if (typeof prompt === 'object' && prompt !== null) {
+      promptText = JSON.stringify(prompt);
+    } else {
+      promptText = String(prompt);
+    }
+    
     if (!promptText || promptText.trim() === '') {
       throw new Error('Prompt cannot be empty');
     }
@@ -159,18 +167,27 @@ class GeminiService {
       try {
         this.checkRateLimit();
 
-        const result = await this.model.generateContent(promptText);
+        console.log('Sending request to Gemini API...');
+        const result = await Promise.race([
+          this.model.generateContent(promptText),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
+          )
+        ]);
+        
         const response = await result.response;
 
         // Check if response was blocked
-        if (!response.text()) {
+        const responseText = response.text();
+        if (!responseText) {
           throw new Error(
             "Response was blocked. Please try rephrasing your request."
           );
         }
 
-        return response.text();
+        return responseText;
       } catch (error) {
+        console.error('Gemini API Error:', error.message);
         if (error.message === "RETRY_WITH_NEW_KEY") {
           // Retry once with new key
           const result = await this.model.generateContent(promptText);
