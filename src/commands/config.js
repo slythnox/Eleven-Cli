@@ -1,7 +1,16 @@
 // src/commands/config.js
-const settings = require("../config/settings");
+const path = require("path");
 const chalk = require("chalk");
 const inquirer = require("inquirer");
+
+// Load settings with proper error handling
+let settings;
+try {
+  settings = require("../config/settings");
+} catch (error) {
+  console.error(chalk.red('❌ Failed to load settings module:'), error.message);
+  process.exit(1);
+}
 
 async function handleConfig(options = {}) {
   try {

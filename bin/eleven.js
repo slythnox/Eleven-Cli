@@ -1,13 +1,26 @@
 #!/usr/bin/env node
 
 const { program } = require('commander');
-const { handleChat } = require('../src/commands/chat');
-const { handleConfig } = require('../src/commands/config');
-const { handleCode } = require('../src/commands/code');
-const { handlePresets } = require('../src/commands/presets');
-const { handleVSCode } = require('../src/commands/vscode');
-const { showWelcome } = require('../src/utils/welcome');
+const path = require('path');
 const chalk = require('chalk');
+
+// Ensure we can find the src directory
+const srcPath = path.join(__dirname, '..', 'src');
+
+let handleChat, handleConfig, handleCode, handlePresets, handleVSCode, showWelcome;
+
+try {
+  ({ handleChat } = require(path.join(srcPath, 'commands', 'chat')));
+  ({ handleConfig } = require(path.join(srcPath, 'commands', 'config')));
+  ({ handleCode } = require(path.join(srcPath, 'commands', 'code')));
+  ({ handlePresets } = require(path.join(srcPath, 'commands', 'presets')));
+  ({ handleVSCode } = require(path.join(srcPath, 'commands', 'vscode')));
+  ({ showWelcome } = require(path.join(srcPath, 'utils', 'welcome')));
+} catch (error) {
+  console.error(chalk.red('❌ Failed to load required modules:'), error.message);
+  console.log(chalk.yellow('💡 Try running: npm install'));
+  process.exit(1);
+}
 
 // Handle uncaught errors gracefully
 process.on('uncaughtException', (error) => {
@@ -189,8 +202,8 @@ program
     console.log(chalk.blue('🔍 Running health checks...\n'));
     
     try {
-      const settings = require('../src/config/settings');
-      const geminiService = require('../src/services/gemini');
+      const settings = require(path.join(srcPath, 'config', 'settings'));
+      const geminiService = require(path.join(srcPath, 'services', 'gemini'));
       
       // Check config
       console.log(chalk.cyan('📋 Configuration:'));
@@ -297,7 +310,7 @@ if (process.argv.length <= 2) {
   
   // Check if configured
   try {
-    const settings = require('../src/config/settings');
+    const settings = require(path.join(srcPath, 'config', 'settings'));
     const config = settings.getConfig();
     
     if (!config.apiKey) {

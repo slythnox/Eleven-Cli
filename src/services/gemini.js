@@ -146,7 +146,8 @@ class GeminiService {
   }
 
   async generateResponse(prompt = {}) {
-    if (!prompt || (typeof prompt === 'string' && prompt.trim() === '')) {
+    const promptText = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
+    if (!promptText || promptText.trim() === '') {
       throw new Error('Prompt cannot be empty');
     }
 
@@ -158,7 +159,7 @@ class GeminiService {
       try {
         this.checkRateLimit();
 
-        const result = await this.model.generateContent(prompt);
+        const result = await this.model.generateContent(promptText);
         const response = await result.response;
 
         // Check if response was blocked
@@ -172,7 +173,7 @@ class GeminiService {
       } catch (error) {
         if (error.message === "RETRY_WITH_NEW_KEY") {
           // Retry once with new key
-          const result = await this.model.generateContent(prompt);
+          const result = await this.model.generateContent(promptText);
           const response = await result.response;
           return response.text();
         }
@@ -182,7 +183,8 @@ class GeminiService {
   }
 
   async generateStreamResponse(prompt, onChunk) {
-    if (!prompt || (typeof prompt === 'string' && prompt.trim() === '')) {
+    const promptText = typeof prompt === 'string' ? prompt : JSON.stringify(prompt);
+    if (!promptText || promptText.trim() === '') {
       throw new Error('Prompt cannot be empty');
     }
 
@@ -198,7 +200,7 @@ class GeminiService {
       try {
         this.checkRateLimit();
 
-        const result = await this.model.generateContentStream(prompt);
+        const result = await this.model.generateContentStream(promptText);
 
         for await (const chunk of result.stream) {
           const chunkText = chunk.text();
@@ -209,7 +211,7 @@ class GeminiService {
       } catch (error) {
         if (error.message === "RETRY_WITH_NEW_KEY") {
           // Retry once with new key
-          const result = await this.model.generateContentStream(prompt);
+          const result = await this.model.generateContentStream(promptText);
           for await (const chunk of result.stream) {
             const chunkText = chunk.text();
             if (chunkText) {

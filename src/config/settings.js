@@ -30,21 +30,16 @@ class Settings {
     try {
       if (fs.existsSync(CONFIG_FILE)) {
         const configData = fs.readFileSync(CONFIG_FILE, "utf8");
-        const config = JSON.parse(configData);
+        let config;
+        try {
+          config = JSON.parse(configData);
+        } catch (parseError) {
+          console.error('Config file is corrupted, using defaults');
+          return this.getDefaultConfig();
+        }
         
         // Ensure all required properties exist with defaults
-        return {
-          apiKey: null,
-          apiKeys: [],
-          useRotation: false,
-          currentKeyIndex: 0,
-          model: "gemini-1.5-flash",
-          maxTokens: 8192,
-          temperature: 0.7,
-          lastUsed: Date.now(),
-          version: "1.0.0",
-          ...config
-        };
+        return { ...this.getDefaultConfig(), ...config };
       }
     } catch (error) {
       console.error(`Error reading config file: ${error.message}`);
@@ -62,7 +57,10 @@ class Settings {
       }
     }
 
-    // Return default configuration
+    return this.getDefaultConfig();
+  }
+
+  getDefaultConfig() {
     return {
       apiKey: null,
       apiKeys: [],

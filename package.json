@@ -5,7 +5,8 @@
   "main": "bin/eleven.js",
   "bin": {
     "eleven-cli": "./bin/eleven.js",
-    "eleven": "./bin/eleven.js"
+    "eleven": "./bin/eleven.js",
+    "el": "./bin/eleven.js"
   },
   "scripts": {
     "start": "node bin/eleven.js",

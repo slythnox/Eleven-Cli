@@ -3,6 +3,7 @@ const inquirer = require("inquirer");
 const chalk = require("chalk");
 const ora = require("ora");
 const fs = require("fs");
+const path = require("path");
 
 async function handleChat(options = {}) {
   try {
@@ -15,8 +16,9 @@ async function handleChat(options = {}) {
 
         // Include file content if specified
         if (options.file) {
-          if (fs.existsSync(options.file)) {
-            const fileContent = fs.readFileSync(options.file, "utf8");
+          const filePath = path.resolve(options.file);
+          if (fs.existsSync(filePath)) {
+            const fileContent = fs.readFileSync(filePath, "utf8");
             prompt += `\n\nFile content (${options.file}):\n\`\`\`\n${fileContent}\n\`\`\``;
           } else {
             spinner.fail(`File not found: ${options.file}`);
@@ -69,7 +71,7 @@ el config -r  # Enable rotation
       ]);
 
       if (["exit", "quit", "bye"].includes(message.toLowerCase())) {
-        console.log(chalk.green(" See you later, Slythnox!"));
+        console.log(chalk.green("👋 See you later, Slythnox!"));
         break;
       }
 

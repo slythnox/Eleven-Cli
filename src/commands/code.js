@@ -13,14 +13,15 @@ async function handleCode(prompt, options = {}) {
     
     if (options.file) {
       // Analyze existing code file
-      if (!fs.existsSync(options.file)) {
+      const filePath = path.resolve(options.file);
+      if (!fs.existsSync(filePath)) {
         console.error(chalk.red(`File not found: ${options.file}`));
         return;
       }
       
-      originalFile = options.file;
+      originalFile = filePath;
       try {
-        originalContent = fs.readFileSync(options.file, 'utf8');
+        originalContent = fs.readFileSync(filePath, 'utf8');
       } catch (error) {
         console.error(chalk.red(`Error reading file: ${error.message}`));
         return;
@@ -28,7 +29,7 @@ async function handleCode(prompt, options = {}) {
       
       if (options.fix || options.rewrite || options.modify) {
         // Mode for modifying existing files
-        fullPrompt = `Please analyze this code and provide the complete rewritten/fixed version:\n\n\`\`\`${path.extname(options.file).slice(1)}\n${originalContent}\n\`\`\``;
+        fullPrompt = `Please analyze this code and provide the complete rewritten/fixed version:\n\n\`\`\`${path.extname(filePath).slice(1)}\n${originalContent}\n\`\`\``;
         
         if (prompt) {
           fullPrompt += `\n\nSpecific request: ${prompt}`;
@@ -37,7 +38,7 @@ async function handleCode(prompt, options = {}) {
         fullPrompt += '\n\nPlease provide ONLY the complete corrected code without explanations. The code should be production-ready.';
       } else {
         // Analysis mode
-        fullPrompt = `Please analyze and explain this code file (${options.file}):\n\n\`\`\`${path.extname(options.file).slice(1)}\n${originalContent}\n\`\`\``;
+        fullPrompt = `Please analyze and explain this code file (${options.file}):\n\n\`\`\`${path.extname(filePath).slice(1)}\n${originalContent}\n\`\`\``;
         
         if (prompt) {
           fullPrompt += `\n\nAdditional request: ${prompt}`;
@@ -77,7 +78,7 @@ async function handleCode(prompt, options = {}) {
       
       if (options.fix || options.rewrite || options.modify) {
         // Handle file modification
-        await handleFileModification(originalFile, originalContent, response, codeBlocks);
+        await handleFileModification(originalFile, originalContent, response, codeBlocks, options);
       } else if (options.output) {
         // Handle new file creation
         await handleFileCreation(options.output, response, codeBlocks);
@@ -108,7 +109,7 @@ function extractCodeBlocks(response) {
   return blocks;
 }
 
-async function handleFileModification(filePath, originalContent, response, codeBlocks) {
+async function handleFileModification(filePath, originalContent, response, codeBlocks, options = {}) {
   console.log(chalk.blue('\n🔧 Code Modification Results:'));
   
   if (codeBlocks.length === 0) {
@@ -124,6 +125,15 @@ async function handleFileModification(filePath, originalContent, response, codeB
   console.log(chalk.red('- Original lines: ') + originalContent.split('\n').length);
   console.log(chalk.green('+ Modified lines: ') + newContent.split('\n').length);
   
+  // Skip confirmation if preview mode
+  if (options.preview) {
+    console.log(chalk.blue('\n📄 Preview Mode - Proposed Changes:'));
+    console.log(chalk.gray('─'.repeat(50)));
+    console.log(newContent);
+    console.log(chalk.gray('─'.repeat(50)));
+    return;
+  }
+  
   // Ask for confirmation
   const { confirm } = await inquirer.prompt([
     {
@@ -136,12 +146,14 @@ async function handleFileModification(filePath, originalContent, response, codeB
   
   if (confirm) {
     // Create backup
-    try {
-      const backupPath = `${filePath}.backup.${Date.now()}`;
-      fs.writeFileSync(backupPath, originalContent);
-      console.log(chalk.gray(`📋 Backup created: ${backupPath}`));
-    } catch (error) {
-      console.log(chalk.yellow(`⚠️  Could not create backup: ${error.message}`));
+    if (options.backup !== false) {
+      try {
+        const backupPath = `${filePath}.backup.${Date.now()}`;
+        fs.writeFileSync(backupPath, originalContent);
+        console.log(chalk.gray(`📋 Backup created: ${backupPath}`));
+      } catch (error) {
+        console.log(chalk.yellow(`⚠️  Could not create backup: ${error.message}`));
+      }
     }
     
     // Write new content

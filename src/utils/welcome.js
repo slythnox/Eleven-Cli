@@ -3,7 +3,8 @@ const chalk = require('chalk');
 let welcomeShown = false;
 
 function showWelcome() {
-  if (welcomeShown) return;
+  // Only show welcome once per session, but allow reset
+  if (welcomeShown && !process.env.ELEVEN_FORCE_WELCOME) return;
   welcomeShown = true;
 
   const asciiArt = `
