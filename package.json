@@ -1,12 +1,13 @@
 {
-  "name": "eleven-cli",
+  "name": "forge-cli",
   "version": "1.0.0",
-  "description": "Eleven CLI — personal Gemini-powered AI assistant",
+  "description": "Forge CLI — AI-powered command-line assistant for intelligent system control",
   "bin": {
-    "el": "./bin/eleven.js"
+    "forge": "./bin/forge.js"
   },
   "scripts": {
-    "start": "node ./bin/eleven.js",
+    "start": "node ./bin/forge.js",
+    "test": "jest",
     "lint": "eslint . || true"
   },
   "engines": {
@@ -20,7 +21,15 @@
     "chalk": "^5.0.0",
     "prompts": "^3.0.0",
     "ora": "^6.1.2",
-    "retry": "^0.14.0"
+    "retry": "^0.14.0",
+    "yaml": "^2.3.4",
+    "winston": "^3.11.0",
+    "uuid": "^9.0.1",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.55.0"
   },
   "license": "MIT"
 }
