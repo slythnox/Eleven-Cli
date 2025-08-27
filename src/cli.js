@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import pkg from '../package.json' assert { type: 'json' };
+import pkg from '../package.json\' assert { type: 'json' };
 import { configCommand } from './commands/config.js';
 import { executeCommand } from './commands/execute.js';
 import { planCommand } from './commands/plan.js';
