@@ -68,6 +68,7 @@ el fix script.py "add error handling"
 el rewrite app.js "use modern ES6 syntax"
 el rewrite old-code.py "make it more efficient"
 
+
 # Generate new files
 el code "create a REST API" -o server.js
 el code -l python "web scraper" -o scraper.py
