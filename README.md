@@ -1,6 +1,6 @@
 # 🔥 Genesis Eleven CLI - AI-Powered Command-Line Assistant
 
-**Eleven** is a revolutionary command-line assistant that brings the power of AI directly to your terminal. Built with Node.js and powered by Google Gemini AI, Forge understands natural language requests and converts them into safe, structured execution plans.
+**Eleven** is a revolutionary command-line assistant that brings the power of AI directly to your terminal. Built with Node.js and powered by Google Gemini AI, el understands natural language requests and converts them into safe, structured execution plans.
 
 ## ✨ Features
 
