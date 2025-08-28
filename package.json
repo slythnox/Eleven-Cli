@@ -1,0 +1,35 @@
+{
+  "name": "forge-cli",
+  "version": "1.0.0",
+  "description": "Forge CLI — AI-powered command-line assistant for intelligent system control",
+  "bin": {
+    "forge": "./bin/forge.js"
+  },
+  "scripts": {
+    "start": "node ./bin/forge.js",
+    "test": "jest",
+    "lint": "eslint . || true"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.1.0",
+    "commander": "^10.0.0",
+    "inquirer": "^9.0.0",
+    "fs-extra": "^11.1.1",
+    "chalk": "^5.0.0",
+    "prompts": "^3.0.0",
+    "ora": "^6.1.2",
+    "retry": "^0.14.0",
+    "yaml": "^2.3.4",
+    "winston": "^3.11.0",
+    "uuid": "^9.0.1",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.55.0"
+  },
+  "license": "MIT"
+}
